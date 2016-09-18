@@ -1,0 +1,8 @@
+tcshow is responsible for 
+	monitoring netem by inspecting each interface of a switch 
+	
+
+The input is
+	which interface you want to poll
+	how frequent you want to poll
+	specify the ip block of low delay traffic
