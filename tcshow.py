@@ -55,11 +55,12 @@ def flowsMetaData(flows, outPort):
     if (nLowDelay+nNonLow!=0):
     	ratio = nLowDelay/(nLowDelay+nNonLow)
     else : 
-	ratio = 0
+	ratio = 0.0
     return ratio, nLowDelay, nNonLow 
 
 def changeQdisc(linkCap, ratio, intfs):
 	rate1 = 0.02
+	print "haha ratio "+str(ratio)
 	if ratio < 0.2 :
 		rate1 = linkCap*0.2
 	elif ratio > 0.9 :
@@ -67,11 +68,11 @@ def changeQdisc(linkCap, ratio, intfs):
 	else: 
 		rate1 = linkCap*ratio
 	rate2 = linkCap - rate1
-	print ratio
+	#print ratio
 	print ("now the min rate for low delay queue is %s", rate1)
 	print ("now the min rate for data queue is %s", rate2)
 	cmd = 'bash tc_change_diff2.sh %s %s %s ' % (linkCap,rate1,rate2)
-	print intfs
+	#print intfs
 	for intf in intfs.keys():
 		cmd = cmd + intf +" "
 	print cmd
@@ -87,7 +88,7 @@ def findPortMinMax(portRange):
 	else :
 		portMin = int(portMinMax[0])
 		portMax = int(portMinMax[0])+1
-	print portMin,portMax
+	#print portMin,portMax
 	return range(portMin, portMax)
 def detectflows(intf, servIP, portRange, cToS):
     flows = []
@@ -96,7 +97,12 @@ def detectflows(intf, servIP, portRange, cToS):
     portTrueRange = findPortMinMax(portRange)
     for item in result.split('\n'):
 	elem = item.split(',')
-	if len(elem)==18:
+	if len(elem)<=9:
+		pass
+	elif elem[9]=='tcp':
+	   #print '---------flows--------'
+	   #print item
+
 	   if (cToS):
 		servPort = elem[-1].split(' ')[0].split('=')[1]
 		if IPAddress(elem[-4].split('=')[1]) in IPNetwork(servIP) and int(servPort) in portTrueRange:
@@ -174,7 +180,7 @@ def tcshow (intflist):
     curr_t =time.time()
     delta_t = curr_t-prev_t
     prev_t = curr_t
-    
+    print "---------curr_t: %s -------------" % curr_t
     #Available interfaces (devices), e.g. eth1, eth0
 #    dev_keys = []
     #Available child interfaces (devices)
@@ -291,7 +297,8 @@ def applyQdiscMgmt(intf, ipblock, portRange, cToS):
 		flowList = []
 		flows = detectflows(sw, ipblock, portRange, cToS)
 		for flow in flows:
-			flowList.append([flow['serverIP'],flow['serverPort'],flow['clientIP'],flow['clientPort'],flow['lowDelay'],flow['outPort']])
+			if flow['outPort'] =='2':
+				flowList.append([flow['serverIP'],flow['serverPort'],flow['clientIP'],flow['clientPort'],flow['lowDelay'],flow['outPort']])
 		for key, value in switches[sw][0].items():#for each port of a switch
 			ratio, a,b = flowsMetaData(flows,value['port'])
 			print value['port']+':'
@@ -300,7 +307,7 @@ def applyQdiscMgmt(intf, ipblock, portRange, cToS):
 			value['nData']=b
 			print value	
 			switches[sw][0][key] = value					
-		print switches[sw][0]			
+		#print switches[sw][0]			
 		print flowList
 		
 		if sw in prev_flows.keys():
@@ -308,9 +315,11 @@ def applyQdiscMgmt(intf, ipblock, portRange, cToS):
 				print "flows did not change since last time"
 			else:
 				if flows:
+					#print '-----flows-----'
+					#print flows
 					#print sw
 					#print switches[sw] 
-					ratio = flowsMetaData(flows, '2')
+					ratio,nLow,nData = flowsMetaData(flows, '2')
 					changeQdisc(float(args.linkCap), ratio, switches[sw][0])
 					print "flows have been changed"
 		prev_flows[sw] = flowList	
